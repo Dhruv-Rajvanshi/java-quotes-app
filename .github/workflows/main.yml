@@ -3,7 +3,7 @@ on:
   push: 
     branches: master
     paths-ignore:
-      - ./github/workflows/*
+      - Dhruv-Rajvanshi/java-quotes-app/.github/workflows/*
 
   workflow_dispatch:
 
@@ -16,7 +16,10 @@ jobs:
     name: "Java CI/CD"
     uses: Dhruv-Rajvanshi/java-quotes-app/.github/workflows/java-ci-cd.yml@master
     with:
-      role-assume: "arn:aws:iam::410454990341:role/GitHubActionsRole"
+      # role-assume: "arn:aws:iam::410454990341:role/GitHubActionsRole"
+      aws-access-key-id: ${{ secrets.AWS_ACESS_KEY }}
+      aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
+      aws-region: ${{secrets.AWS-REGION}}
       AWS_REGION: "us-east-2"
       ECR_REPO: "java-new"
       TASK_DEFINITION: "java-app-task-definition"
