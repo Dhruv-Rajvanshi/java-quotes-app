@@ -1,0 +1,119 @@
+name: Java Reusable CI/CD
+on: 
+  workflow_call:
+    inputs:
+      role-assume:
+        required: true
+        type: string
+      AWS_REGION:
+        required: true
+        type: string  
+      ECR_REPO:
+        required: true
+        type: string
+      runner:
+        required: false 
+        type: string
+        default: "ubuntu-latest"
+      TASK_DEFINITION:
+        required: true
+        type: string
+      CONTAINER_NAME:
+        required: true
+        type: string
+      CLUSTER:
+        required: true
+        type: string
+      SERVICE:
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build:
+    name: "BUILD"
+    runs-on: ${{ inputs.runner }}
+    steps:
+      - name: Checkout code 
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ inputs.role-assume }}
+          role-session-name: actionssession
+          aws-region: ${{ inputs.AWS_REGION }}
+
+      - name: Login to ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag and push image to ecr
+        id: build
+        env:
+          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          ECR_REPO: ${{ inputs.ECR_REPO }}
+        run: |
+           LATEST_TAG=$(aws ecr describe-images --repository-name $ECR_REPO \
+           --query 'sort_by(imageDetails,& imagePushedAt)[-1].imageTags[0]' \
+           --output text 2>/dev/null)
+
+            if [[ -z "$LATEST_TAG" ]]; then
+              NEW_TAG="v1"
+            else
+              VERSION_NUM=$(echo "$LATEST_TAG" | grep -oE '[0-9]+$')
+              if [[ -z "$VERSION_NUM" ]]; then
+                NEW_TAG="v1"
+              else  
+                NEW_TAG="v$((VERSION_NUM + 1))"
+              fi
+            fi
+
+            echo "NEW_TAG=$NEW_TAG" >> $GITHUB_ENV
+            echo "Latest tag: $LATEST_TAG"
+            echo "New tag: $NEW_TAG"
+
+            docker build -t "$ECR_REPO:$NEW_TAG" . 
+            docker push "$ECR_REPO:$NEW_TAG" 
+            echo "image=$ECR_REPO:$NEW_TAG" >> $GITHUB_OUTPUT
+
+  deploy:   
+    name: "DEPLOY"
+    needs: build
+    runs-on: ${{ inputs.runner }}
+    steps:
+      - name: Checkout code 
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ inputs.role-assume }}
+          role-session-name: actionssession
+          aws-region: ${{ inputs.AWS_REGION }} 
+
+      - name: Fetch Task Definition from ECS
+        run: |
+          aws ecs describe-task-definition \
+          --task-definition ${{ inputs.TASK_DEFINITION }} \
+          --query "taskDefinition" \
+          --output json | jq -c > java-task-definition.json
+
+      - name: Fill new image to Task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: java-task-definition.json
+          container-name: ${{ inputs.CONTAINER_NAME }}  
+          image: ${{ needs.build.outputs.image }}
+
+      - name: Deploy to AWS ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ inputs.SERVICE }}
+          cluster: ${{ inputs.CLUSTER }}
+          wait-for-service-stability: true
