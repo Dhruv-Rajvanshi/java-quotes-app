@@ -14,7 +14,7 @@ permissions:
 jobs:
   run-reusable-workflow:
     name: "Java CI/CD"
-    uses: Dhruv-Rajvanshi/reusable_workflows/.github/workflows/java-ci-cd.yml@master
+    uses: Dhruv-Rajvanshi/reusable_workflows/.github/workflows/java-ci-cd.yml@main
     with:
       # role-assume: "arn:aws:iam::410454990341:role/GitHubActionsRole"
       ECR_REPO: "java-new"
