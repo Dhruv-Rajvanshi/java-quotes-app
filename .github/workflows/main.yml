@@ -3,7 +3,7 @@ on:
   push: 
     branches: master
     paths-ignore:
-      - Dhruv-Rajvanshi/java-quotes-app/.github/workflows/*
+      - "Dhruv-Rajvanshi/java-quotes-app/.github/workflows/*"
 
   workflow_dispatch:
 
