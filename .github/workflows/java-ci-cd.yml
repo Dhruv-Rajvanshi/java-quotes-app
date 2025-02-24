@@ -1,10 +1,7 @@
 name: Java Reusable CI/CD
 on: 
   workflow_call:
-    inputs:
-      AWS_REGION:
-        required: true
-        type: string  
+    inputs: 
       ECR_REPO:
         required: true
         type: string
@@ -24,13 +21,7 @@ on:
       SERVICE:
         required: true
         type: string
-    secrets:
-       aws-access-key-id:
-         required: true
-       aws-secret-access-key: 
-         required: true
-       aws-region: 
-         required: true
+        
 permissions:
   id-token: write
   contents: read
@@ -48,7 +39,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACESS_KEY }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
-          aws-region: ${{secrets.AWS-REGION}}
+          aws-region: ${{secrets.AWS_REGION}}
 
       - name: Login to ECR
         id: ecr-login
@@ -96,7 +87,7 @@ jobs:
         with:
          aws-access-key-id: ${{ secrets.AWS_ACESS_KEY }}
          aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
-         aws-region: ${{secrets.AWS-REGION}}
+         aws-region: ${{secrets.AWS_REGION}}
 
       - name: Fetch Task Definition from ECS
         run: |
